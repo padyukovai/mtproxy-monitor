@@ -322,11 +322,12 @@ def check_and_alert(conns: dict, traffic: dict, config: dict, db: sqlite3.Connec
             if send_message(bot_token, chat_id, msg):
                 record_alert(alert_type, alert_key, msg)
 
-def generate_daily_chart(db: sqlite3.Connection, output_path: str) -> str:
-    """Генерация графика за 24 часа."""
+def generate_daily_chart(db: sqlite3.Connection, output_path: str, start_ts: int = None) -> str:
+    """Генерация графика."""
     cursor = db.cursor()
     now = int(time.time())
-    start_ts = now - 86400
+    if start_ts is None:
+        start_ts = now - 86400
     
     cursor.execute("""
         SELECT timestamp, total_connections, unique_ips, bytes_in, bytes_out 
@@ -388,7 +389,7 @@ def generate_daily_chart(db: sqlite3.Connection, output_path: str) -> str:
     
     return output_path
 
-def send_daily_report(config: dict, db: sqlite3.Connection):
+def send_daily_report(config: dict, db: sqlite3.Connection, start_ts: int = None):
     """
     Формирование и отправка суточного отчета.
     """
@@ -400,7 +401,8 @@ def send_daily_report(config: dict, db: sqlite3.Connection):
         return
 
     now = int(time.time())
-    start_ts = now - 86400
+    if start_ts is None:
+        start_ts = now - 86400
     
     # 1. Агрегаты
     cursor.execute("""
@@ -472,7 +474,7 @@ def send_daily_report(config: dict, db: sqlite3.Connection):
     
     # 5. График
     output_path = "/tmp/mtproxy_daily.png"
-    generate_daily_chart(db, output_path)
+    generate_daily_chart(db, output_path, start_ts)
     
     # 6. Отправка
     send_photo(bot_token, chat_id, output_path, caption=text)
@@ -528,16 +530,7 @@ def process_bot_commands(bot_token: str, chat_id: str, db: sqlite3.Connection, c
             
         elif text == "/today" or text.startswith("/today@"):
             today_start = int(datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
-            cursor.execute("SELECT SUM(bytes_in), SUM(bytes_out), MAX(total_connections) FROM metrics WHERE timestamp >= ?", (today_start,))
-            row = cursor.fetchone()
-            bytes_in, bytes_out, max_conn = row if row and row[0] is not None else (0, 0, 0)
-            
-            report_text = f"<b>📊 Today's Report:</b>\n\n"
-            report_text += f"<b>Max Connections:</b> {max_conn}\n"
-            report_text += f"<b>Traffic In:</b> {bytes_in} bytes\n"
-            report_text += f"<b>Traffic Out:</b> {bytes_out} bytes"
-            
-            send_message(bot_token, chat_id, report_text)
+            send_daily_report(config, db, start_ts=today_start)
             
         elif text.startswith("/threshold"):
             parts = text.split()

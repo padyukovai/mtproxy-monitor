@@ -1,0 +1,13 @@
+{
+    "telegram": {
+        "bot_token": "YOUR_BOT_TOKEN",
+        "chat_id": "YOUR_CHAT_ID"
+    },
+    "thresholds": {
+        "max_connections_per_ip": 20,
+        "max_unique_ips": 50
+    },
+    "mtproxy_port": 8443,
+    "alert_cooldown_minutes": 30,
+    "daily_report_top_n": 10
+}

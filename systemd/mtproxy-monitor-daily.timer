@@ -1,0 +1,9 @@
+[Unit]
+Description=MTProxy Daily Report at 00:05
+
+[Timer]
+OnCalendar=*-*-* 00:05:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

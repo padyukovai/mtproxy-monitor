@@ -1,0 +1,8 @@
+[Unit]
+Description=MTProxy Daily Report
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/mtproxy-monitor/monitor.py --daily-report
+WorkingDirectory=/opt/mtproxy-monitor

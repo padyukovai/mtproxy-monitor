@@ -1,0 +1,8 @@
+[Unit]
+Description=MTProxy Connection Monitor (collect)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/mtproxy-monitor/monitor.py --collect
+WorkingDirectory=/opt/mtproxy-monitor

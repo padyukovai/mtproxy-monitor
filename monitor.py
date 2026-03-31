@@ -14,6 +14,8 @@ import matplotlib.dates as mdates
 import argparse
 import requests
 
+MSK_TZ = datetime.timezone(datetime.timedelta(hours=3))
+
 from geoip import init_geo_db, get_ips_geo_info
 
 def load_config(path: str) -> dict:
@@ -348,7 +350,7 @@ def generate_daily_chart(db: sqlite3.Connection, output_path: str, start_ts: int
     
     rows = cursor.fetchall()
     
-    timestamps = [datetime.datetime.fromtimestamp(row[0]) for row in rows]
+    timestamps = [datetime.datetime.fromtimestamp(row[0], tz=MSK_TZ) for row in rows]
     conns = [row[1] for row in rows]
     ips = [row[2] for row in rows]
     b_in = [row[3] / (1024*1024) for row in rows] # in MB
@@ -373,13 +375,13 @@ def generate_daily_chart(db: sqlite3.Connection, output_path: str, start_ts: int
     lines_2, labels_2 = ax1_ips.get_legend_handles_labels()
     ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left')
     
-    ax1.set_title(f"MTProxy Load - {datetime.datetime.now().strftime('%d.%m.%Y')}")
+    ax1.set_title(f"MTProxy Load - {datetime.datetime.now(MSK_TZ).strftime('%d.%m.%Y')}")
     ax1.grid(True, alpha=0.3)
 
     # Нижний график (трафик)
     width = 0.003 # ширина
     if not timestamps:
-        timestamps = [datetime.datetime.now()]
+        timestamps = [datetime.datetime.now(MSK_TZ)]
         b_in = [0]
         b_out = [0]
         
@@ -475,7 +477,7 @@ def send_daily_report(config: dict, db: sqlite3.Connection, start_ts: int = None
     crit_count = alerts_counts.get("critical_leak", 0)
 
     # 4. Текст отчета
-    date_str = datetime.datetime.now().strftime("%d.%m.%Y")
+    date_str = datetime.datetime.now(MSK_TZ).strftime("%d.%m.%Y")
     
     text = (
         f"📊 MTProxy — Отчёт за {date_str}\n\n"
@@ -557,12 +559,12 @@ def process_bot_commands(bot_token: str, chat_id: str, db: sqlite3.Connection, c
             status_text += f"↓ Down: {format_bytes(traffic['bytes_out'])}\n"
             status_text += f"↑ Up: {format_bytes(traffic['bytes_in'])}"
             
-            status_text += f"\n\n<i>(замер: {datetime.datetime.now().strftime('%H:%M:%S')})</i>"
+            status_text += f"\n\n<i>(замер: {datetime.datetime.now(MSK_TZ).strftime('%H:%M:%S')})</i>"
             
             send_message(bot_token, chat_id, status_text)
             
         elif text == "/today" or text.startswith("/today@"):
-            today_start = int(datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+            today_start = int(datetime.datetime.now(MSK_TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
             send_daily_report(config, db, start_ts=today_start)
             
         elif text.startswith("/threshold"):

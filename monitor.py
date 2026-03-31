@@ -12,6 +12,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import argparse
+import requests
+
+from geoip import init_geo_db, get_ips_geo_info
 
 def load_config(path: str) -> dict:
     """
@@ -87,6 +90,9 @@ def init_db(db_path: str) -> sqlite3.Connection:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts(timestamp);')
         
         conn.commit()
+        
+        init_geo_db(conn)
+        
         return conn
     except sqlite3.Error as e:
         print(f"Ошибка SQLite при инициализации базы данных '{db_path}': {e}", file=sys.stderr)
@@ -296,9 +302,10 @@ def check_and_alert(conns: dict, traffic: dict, config: dict, db: sqlite3.Connec
             alert_type = "warning_ip"
             alert_key = ip
             if can_send_alert(alert_type, alert_key):
+                geo_info = get_ips_geo_info([ip], db).get(ip, "")
                 msg = (
                     f"⚠️ MTProxy WARNING\n\n"
-                    f"IP {ip} — {count} подключений (порог: {max_conn_per_ip})\n\n"
+                    f"IP {ip}{geo_info} — {count} подключений (порог: {max_conn_per_ip})\n\n"
                     f"Всего: {total} conn | {unique_ips} unique IPs\n"
                     f"Трафик за 5 мин: ↓{format_bytes(bytes_out)} ↑{format_bytes(bytes_in)}"
                 )
@@ -311,7 +318,10 @@ def check_and_alert(conns: dict, traffic: dict, config: dict, db: sqlite3.Connec
         alert_key = "global"
         if can_send_alert(alert_type, alert_key):
             sorted_ips = sorted(per_ip.items(), key=lambda x: x[1], reverse=True)[:10]
-            top_ips_str = "\n".join([f"  {ip} — {count} conn" for ip, count in sorted_ips])
+            top_ips_list = [ip for ip, count in sorted_ips]
+            geo_map = get_ips_geo_info(top_ips_list, db)
+            
+            top_ips_str = "\n".join([f"  {ip}{geo_map.get(ip, '')} — {count} conn" for ip, count in sorted_ips])
             
             msg = (
                 f"🚨 MTProxy LEAK ALERT\n\n"
@@ -437,10 +447,14 @@ def send_daily_report(config: dict, db: sqlite3.Connection, start_ts: int = None
     top_n = config.get("daily_report_top_n", 10)
     sorted_ips = sorted(ip_totals.items(), key=lambda x: x[1], reverse=True)[:top_n]
     
+    top_ips_list = [ip for ip, count in sorted_ips]
+    geo_map = get_ips_geo_info(top_ips_list, db)
+    
     top_ips_str = ""
     for i, (ip, count) in enumerate(sorted_ips):
         suffix = " (суммарно)" if i == 0 else ""
-        top_ips_str += f"  {ip} — {count} conn{suffix}\n"
+        geo_info = geo_map.get(ip, "")
+        top_ips_str += f"  {ip}{geo_info} — {count} conn{suffix}\n"
         
     if not top_ips_str:
         top_ips_str = "  Нет данных\n"
@@ -526,7 +540,11 @@ def process_bot_commands(bot_token: str, chat_id: str, db: sqlite3.Connection, c
             
             per_ip = connections.get("per_ip", {})
             sorted_ips = sorted(per_ip.items(), key=lambda x: x[1], reverse=True)[:10]
-            top_ips_str = "\n".join([f"  <code>{ip}</code> — {count}" for ip, count in sorted_ips])
+            
+            top_ips_list = [ip for ip, count in sorted_ips]
+            geo_map = get_ips_geo_info(top_ips_list, db)
+            
+            top_ips_str = "\n".join([f"  <code>{ip}</code>{geo_map.get(ip, '')} — {count}" for ip, count in sorted_ips])
             
             status_text = f"<b>MTProxy Status:</b> {'✅ Alive' if alive else '❌ Down'}\n\n"
             status_text += f"<b>Connections:</b> {connections['total']}\n"

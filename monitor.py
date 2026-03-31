@@ -479,7 +479,7 @@ def send_daily_report(config: dict, db: sqlite3.Connection, start_ts: int = None
     # 6. Отправка
     send_photo(bot_token, chat_id, output_path, caption=text)
 
-def process_bot_commands(bot_token: str, chat_id: str, db: sqlite3.Connection, config: dict):
+def process_bot_commands(bot_token: str, chat_id: str, db: sqlite3.Connection, config: dict, recent_conns: dict = None, recent_traffic: dict = None):
     """
     Обработка входящих команд Telegram.
     """
@@ -514,17 +514,32 @@ def process_bot_commands(bot_token: str, chat_id: str, db: sqlite3.Connection, c
         text = update.message.text.strip()
         
         if text == "/status" or text.startswith("/status@"):
-            port = config.get("mtproxy_port", 8443)
-            connections = collect_connections(port)
-            traffic = collect_traffic(db, port)
+            if recent_conns and recent_traffic:
+                connections = recent_conns
+                traffic = recent_traffic
+            else:
+                port = config.get("mtproxy_port", 8443)
+                connections = collect_connections(port)
+                traffic = collect_traffic(db, port)
+            
             alive = check_mtproxy_alive()
+            
+            per_ip = connections.get("per_ip", {})
+            sorted_ips = sorted(per_ip.items(), key=lambda x: x[1], reverse=True)[:10]
+            top_ips_str = "\n".join([f"  <code>{ip}</code> — {count}" for ip, count in sorted_ips])
             
             status_text = f"<b>MTProxy Status:</b> {'✅ Alive' if alive else '❌ Down'}\n\n"
             status_text += f"<b>Connections:</b> {connections['total']}\n"
             status_text += f"<b>Unique IPs:</b> {connections['unique_ips']}\n\n"
+            
+            if top_ips_str:
+                status_text += f"<b>Top 10 IPs:</b>\n{top_ips_str}\n\n"
+            
             status_text += f"<b>Traffic (delta):</b>\n"
             status_text += f"↓ Down: {format_bytes(traffic['bytes_out'])}\n"
             status_text += f"↑ Up: {format_bytes(traffic['bytes_in'])}"
+            
+            status_text += f"\n\n<i>(замер: {datetime.datetime.now().strftime('%H:%M:%S')})</i>"
             
             send_message(bot_token, chat_id, status_text)
             
@@ -641,7 +656,7 @@ def main():
             bot_token = telegram_config.get("bot_token")
             chat_id = telegram_config.get("chat_id")
             if bot_token and chat_id:
-                process_bot_commands(bot_token, chat_id, db, config)
+                process_bot_commands(bot_token, chat_id, db, config, recent_conns=conns, recent_traffic=traffic)
                 
         if args.daily_report:
             send_daily_report(config, db)

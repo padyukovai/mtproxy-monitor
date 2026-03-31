@@ -482,7 +482,7 @@ def send_daily_report(config: dict, db: sqlite3.Connection, start_ts: int = None
     text = (
         f"📊 MTProxy — Отчёт за {date_str}\n\n"
         f"Подключений (пик / среднее): {max_conn} / {avg_conn}\n"
-        f"Уникальных IP (пик / среднее): {max_ips} / {avg_ips}\n"
+        f"Уникальных IP (всего / пик / среднее): {len(ip_totals)} / {max_ips} / {avg_ips}\n"
         f"Трафик: ↓{format_bytes(sum_out or 0)} ↑{format_bytes(sum_in or 0)}\n\n"
         f"Top {top_n} IP за сутки:\n{top_ips_str}\n"
         f"Алертов за сутки: {warn_count} WARNING, {crit_count} CRITICAL"

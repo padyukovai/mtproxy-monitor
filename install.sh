@@ -21,7 +21,7 @@ mkdir -p /opt/mtproxy-monitor/data
 
 # 3. Файлы
 echo "[3/5] Копирование файлов..."
-cp monitor.py /opt/mtproxy-monitor/
+cp monitor.py geoip.py /opt/mtproxy-monitor/
 if [ ! -f /opt/mtproxy-monitor/config.json ]; then
     cp config.example.json /opt/mtproxy-monitor/config.json
     echo "⚠️  Заполните /opt/mtproxy-monitor/config.json (bot_token, chat_id)"

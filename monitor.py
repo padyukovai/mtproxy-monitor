@@ -300,7 +300,7 @@ def check_and_alert(conns: dict, traffic: dict, config: dict, db: sqlite3.Connec
                     f"⚠️ MTProxy WARNING\n\n"
                     f"IP {ip} — {count} подключений (порог: {max_conn_per_ip})\n\n"
                     f"Всего: {total} conn | {unique_ips} unique IPs\n"
-                    f"Трафик за 5 мин: ↓{format_bytes(bytes_in)} ↑{format_bytes(bytes_out)}"
+                    f"Трафик за 5 мин: ↓{format_bytes(bytes_out)} ↑{format_bytes(bytes_in)}"
                 )
                 if send_message(bot_token, chat_id, msg):
                     record_alert(alert_type, alert_key, msg)
@@ -317,7 +317,7 @@ def check_and_alert(conns: dict, traffic: dict, config: dict, db: sqlite3.Connec
                 f"🚨 MTProxy LEAK ALERT\n\n"
                 f"Обнаружено {unique_ips} уникальных IP (порог: {max_unique_ips})\n\n"
                 f"Top 10:\n{top_ips_str}\n\n"
-                f"Трафик за 5 мин: ↓{format_bytes(bytes_in)} ↑{format_bytes(bytes_out)}"
+                f"Трафик за 5 мин: ↓{format_bytes(bytes_out)} ↑{format_bytes(bytes_in)}"
             )
             if send_message(bot_token, chat_id, msg):
                 record_alert(alert_type, alert_key, msg)
@@ -373,8 +373,8 @@ def generate_daily_chart(db: sqlite3.Connection, output_path: str, start_ts: int
         b_in = [0]
         b_out = [0]
         
-    ax2.bar(timestamps, b_in, width=width, label='In (MB)', color='#00ff00', alpha=0.7)
-    ax2.bar(timestamps, b_out, width=width, bottom=b_in, label='Out (MB)', color='#ffaa00', alpha=0.7)
+    ax2.bar(timestamps, b_out, width=width, label='Down (MB)', color='#00ff00', alpha=0.7)
+    ax2.bar(timestamps, b_in, width=width, bottom=b_out, label='Up (MB)', color='#ffaa00', alpha=0.7)
     
     ax2.set_ylabel('Traffic (MB / 5 min)')
     ax2.legend(loc='upper left')
@@ -467,7 +467,7 @@ def send_daily_report(config: dict, db: sqlite3.Connection, start_ts: int = None
         f"📊 MTProxy — Отчёт за {date_str}\n\n"
         f"Подключений (пик / среднее): {max_conn} / {avg_conn}\n"
         f"Уникальных IP (пик / среднее): {max_ips} / {avg_ips}\n"
-        f"Трафик: ↓{format_bytes(sum_in or 0)} ↑{format_bytes(sum_out or 0)}\n\n"
+        f"Трафик: ↓{format_bytes(sum_out or 0)} ↑{format_bytes(sum_in or 0)}\n\n"
         f"Top {top_n} IP за сутки:\n{top_ips_str}\n"
         f"Алертов за сутки: {warn_count} WARNING, {crit_count} CRITICAL"
     )
@@ -523,8 +523,8 @@ def process_bot_commands(bot_token: str, chat_id: str, db: sqlite3.Connection, c
             status_text += f"<b>Connections:</b> {connections['total']}\n"
             status_text += f"<b>Unique IPs:</b> {connections['unique_ips']}\n\n"
             status_text += f"<b>Traffic (delta):</b>\n"
-            status_text += f"In: {traffic['bytes_in']} bytes\n"
-            status_text += f"Out: {traffic['bytes_out']} bytes"
+            status_text += f"↓ Down: {format_bytes(traffic['bytes_out'])}\n"
+            status_text += f"↑ Up: {format_bytes(traffic['bytes_in'])}"
             
             send_message(bot_token, chat_id, status_text)
             
